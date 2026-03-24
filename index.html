@@ -181,6 +181,9 @@
                 <span>🏆 分数: <span id="score">0</span></span>
                 <span>🚗 超越: <span id="passed">0</span></span>
             </div>
+            <div class="super-mode-indicator hidden" id="superModeIndicator">
+                ⚡ 超级模式 ⚡
+            </div>
             <div class="speed-indicator">
                 <span id="speed">0</span> km/h
             </div>
@@ -195,7 +198,8 @@
             <p>
                 躲避路上的其他车辆<br>
                 收集金币获得高分<br>
-                速度越快，分数越高！
+                吃到 🎁 道具箱进入 ⚡ 超级模式！<br>
+                <small style="color: #ff00ff;">无敌 + 自动吸金币 + 撞飞敌车</small>
             </p>
             <button class="btn" onclick="startGame()">开始游戏</button>
             <button class="btn" onclick="startSpectatorMode()" style="margin-top: 15px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">👀 看戏模式 (AI自动玩)</button>
@@ -361,6 +365,9 @@
             // 视觉反馈
             const canvas = document.getElementById('gameCanvas');
             canvas.style.boxShadow = '0 0 50px rgba(255, 0, 255, 0.8)';
+
+            // 显示超级模式指示器
+            document.getElementById('superModeIndicator').classList.remove('hidden');
         }
 
         // 结束超级模式
@@ -368,6 +375,9 @@
             superMode.active = false;
             const canvas = document.getElementById('gameCanvas');
             canvas.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.5)';
+
+            // 隐藏超级模式指示器
+            document.getElementById('superModeIndicator').classList.add('hidden');
         }
 
         // 创建粒子效果
