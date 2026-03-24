@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极速赛车 - Racing Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: #2d3436;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .score-board span {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .super-mode-indicator {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            color: #ff00ff;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff00ff, 2px 2px 4px rgba(0, 0, 0, 0.5);
+            animation: pulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.7; transform: scale(1); }
+            to { opacity: 1; transform: scale(1.1); }
+        }
+
+        .speed-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .start-screen, .game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        .start-screen h1, .game-over-screen h1 {
+            color: #fff;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            to { text-shadow: 0 0 40px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.4); }
+        }
+
+        .start-screen p, .game-over-screen p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 18px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .final-score {
+            color: #ffd700;
+            font-size: 36px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .title-decoration {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+        <div class="ui-overlay">
+            <div class="score-board">
+                <span>🏆 分数: <span id="score">0</span></span>
+                <span>🚗 超越: <span id="passed">0</span></span>
+            </div>
+            <div class="speed-indicator">
+                <span id="speed">0</span> km/h
+            </div>
+            <div class="controls-hint" id="controlsHint">
+                ← → 方向键控制移动 | ↑ 加速 | ↓ 减速
+            </div>
+        </div>
+
+        <div class="start-screen" id="startScreen">
+            <div class="title-decoration">🏎️</div>
+            <h1>极速赛车</h1>
+            <p>
+                躲避路上的其他车辆<br>
+                收集金币获得高分<br>
+                速度越快，分数越高！
+            </p>
+            <button class="btn" onclick="startGame()">开始游戏</button>
+            <button class="btn" onclick="startSpectatorMode()" style="margin-top: 15px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">👀 看戏模式 (AI自动玩)</button>
+        </div>
+
+        <div class="game-over-screen hidden" id="gameOverScreen">
+            <div class="title-decoration">💥</div>
+            <h1>游戏结束</h1>
+            <div class="final-score">
+                最终得分: <span id="finalScore">0</span>
+            </div>
+            <p id="gameOverReason">撞车了！小心驾驶~</p>
+            <button class="btn" onclick="restartGame()">再来一局</button>
+            <button class="btn" onclick="switchMode()" style="margin-top: 10px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">切换模式</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 游戏状态
+        let gameState = 'start'; // start, playing, gameover, spectator
+        let score = 0;
+        let passedCars = 0;
+        let gameSpeed = 0;
+        let baseSpeed = 3;
+        let speedMultiplier = 1;
+        let isSpectatorMode = false; // 看戏模式标志
+
+        // 道路参数
+        const roadWidth = 300;
+        const roadLeft = (canvas.width - roadWidth) / 2;
+        const laneWidth = roadWidth / 3;
+        const laneCenters = [
+            roadLeft + laneWidth / 2,
+            roadLeft + laneWidth * 1.5,
+            roadLeft + laneWidth * 2.5
+        ];
+
+        // 玩家赛车
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 120,
+            width: 40,
+            height: 70,
+            speed: 5,
+            color: '#e74c3c',
+            lane: 1 // 0, 1, 2
+        };
+
+        // 游戏对象数组
+        let enemyCars = [];
+        let coins = [];
+        let powerUps = []; // 道具箱
+        let particles = [];
+        let roadOffset = 0;
+
+        // 超级模式状态
+        let superMode = {
+            active: false,
+            timeLeft: 0, // 剩余时间（毫秒）
+            duration: 5000 // 超级模式持续5秒
+        };
+
+        // 超级模式效果
+        let superModeEffects = {
+            magnetRange: 150, // 金币吸附范围
+            speedBoost: 2.0, // 速度倍数
+            invincible: true // 无敌
+        };
+
+        // 按键状态
+        const keys = {};
+
+        // 监听按键
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+
+            // 防止方向键滚动页面
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // 触摸控制
+        let touchStartX = 0;
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touchX = e.touches[0].clientX;
+            const diff = touchX - touchStartX;
+
+            if (Math.abs(diff) > 30) {
+                if (diff > 0 && player.lane < 2) {
+                    player.lane++;
+                } else if (diff < 0 && player.lane > 0) {
+                    player.lane--;
+                }
+                touchStartX = touchX;
+            }
+        });
+
+        // 创建敌方车辆
+        function createEnemyCar() {
+            const lane = Math.floor(Math.random() * 3);
+            const colors = ['#3498db', '#9b59b6', '#f39c12', '#1abc9c', '#e67e22', '#34495e'];
+
+            enemyCars.push({
+                x: laneCenters[lane],
+                y: -100,
+                width: 40,
+                height: 70,
+                speed: baseSpeed + Math.random() * 2 + speedMultiplier,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                lane: lane
+            });
+        }
+
+        // 创建金币
+        function createCoin() {
+            const lane = Math.floor(Math.random() * 3);
+            coins.push({
+                x: laneCenters[lane],
+                y: -50,
+                radius: 15,
+                collected: false
+            });
+        }
+
+        // 创建道具箱（救命稻草）
+        function createPowerUp() {
+            const lane = Math.floor(Math.random() * 3);
+            const types = ['super']; // 目前只有超级模式道具
+            const type = types[Math.floor(Math.random() * types.length)];
+
+            powerUps.push({
+                x: laneCenters[lane],
+                y: -60,
+                width: 50,
+                height: 50,
+                type: type,
+                rotation: 0
+            });
+        }
+
+        // 激活超级模式
+        function activateSuperMode() {
+            superMode.active = true;
+            superMode.timeLeft = superMode.duration;
+
+            // 创建激活特效
+            createParticles(player.x, player.y, '#ff00ff', 30);
+            createParticles(player.x, player.y, '#00ffff', 20);
+
+            // 视觉反馈
+            const canvas = document.getElementById('gameCanvas');
+            canvas.style.boxShadow = '0 0 50px rgba(255, 0, 255, 0.8)';
+        }
+
+        // 结束超级模式
+        function deactivateSuperMode() {
+            superMode.active = false;
+            const canvas = document.getElementById('gameCanvas');
+            canvas.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.5)';
+        }
+
+        // 创建粒子效果
+        function createParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 30,
+                    color: color,
+                    size: Math.random() * 5 + 2
+                });
+            }
+        }
+
+        // 绘制赛车
+        function drawCar(x, y, width, height, color, isPlayer = false) {
+            ctx.save();
+
+            // 车身阴影
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(x - width/2 + 3, y - height/2 + 3, width, height);
+
+            // 车身
+            ctx.fillStyle = color;
+            ctx.fillRect(x - width/2, y - height/2, width, height);
+
+            // 车顶
+            ctx.fillStyle = isPlayer ? '#c0392b' : darkenColor(color, 20);
+            ctx.fillRect(x - width/2 + 5, y - height/2 + 15, width - 10, height - 30);
+
+            // 车窗
+            ctx.fillStyle = '#87ceeb';
+            ctx.fillRect(x - width/2 + 8, y - height/2 + 20, width - 16, height - 40);
+
+            // 车灯
+            ctx.fillStyle = isPlayer ? '#ffeb3b' : '#ff4444';
+            ctx.fillRect(x - width/2 + 3, y - height/2 + (isPlayer ? height - 8 : 3), 10, 5);
+            ctx.fillRect(x - width/2 + width - 13, y - height/2 + (isPlayer ? height - 8 : 3), 10, 5);
+
+            // 轮子
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(x - width/2 - 3, y - height/2 + 10, 6, 15);
+            ctx.fillRect(x - width/2 - 3, y - height/2 + height - 25, 6, 15);
+            ctx.fillRect(x + width/2 - 3, y - height/2 + 10, 6, 15);
+            ctx.fillRect(x + width/2 - 3, y - height/2 + height - 25, 6, 15);
+
+            // 玩家赛车特效
+            if (isPlayer) {
+                // 尾焰
+                ctx.fillStyle = `rgba(255, 100, 0, ${0.5 + Math.random() * 0.3})`;
+                ctx.beginPath();
+                ctx.moveTo(x - 8, y + height/2);
+                ctx.lineTo(x, y + height/2 + 20 + Math.random() * 10);
+                ctx.lineTo(x + 8, y + height/2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        // 颜色加深辅助函数
+        function darkenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max((num >> 16) - amt, 0);
+            const G = Math.max((num >> 8 & 0x00FF) - amt, 0);
+            const B = Math.max((num & 0x0000FF) - amt, 0);
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+
+        // 绘制金币
+        function drawCoin(coin) {
+            ctx.save();
+
+            // 超级模式：金币吸附效果
+            if (superMode.active) {
+                const dist = Math.sqrt((player.x - coin.x) ** 2 + (player.y - coin.y) ** 2);
+                if (dist < superModeEffects.magnetRange && dist > 30) {
+                    // 向玩家移动
+                    const angle = Math.atan2(player.y - coin.y, player.x - coin.x);
+                    coin.x += Math.cos(angle) * 8;
+                    coin.y += Math.sin(angle) * 8;
+
+                    // 吸附线效果
+                    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(coin.x, coin.y);
+                    ctx.lineTo(player.x, player.y);
+                    ctx.stroke();
+                }
+            }
+
+            // 旋转动画
+            const rotation = Date.now() * 0.005;
+            const scale = Math.abs(Math.sin(rotation));
+
+            // 金币阴影
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(coin.x + 3, coin.y + 3, coin.radius * scale, coin.radius, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 金币外圈
+            const gradient = ctx.createRadialGradient(coin.x, coin.y, 0, coin.x, coin.y, coin.radius);
+            gradient.addColorStop(0, '#fff9c4');
+            gradient.addColorStop(0.5, '#ffd700');
+            gradient.addColorStop(1, '#ff8f00');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(coin.x, coin.y, coin.radius * scale, coin.radius, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 金币内圈
+            ctx.strokeStyle = '#ff6f00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(coin.x, coin.y, coin.radius * 0.7 * scale, coin.radius * 0.7, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 金币符号
+            ctx.fillStyle = '#ff6f00';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('$', coin.x, coin.y);
+
+            ctx.restore();
+        }
+
+        // 绘制道具箱（救命稻草）
+        function drawPowerUp(powerUp) {
+            ctx.save();
+
+            // 旋转动画
+            powerUp.rotation += 0.05;
+            const bounce = Math.sin(Date.now() * 0.01) * 3;
+
+            const x = powerUp.x - powerUp.width / 2;
+            const y = powerUp.y - powerUp.height / 2 + bounce;
+
+            // 发光效果
+            if (superMode.active) {
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 20;
+            }
+
+            // 道具箱阴影
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fillRect(x + 5, y + 5, powerUp.width, powerUp.height);
+
+            // 道具箱主体 - 彩虹渐变
+            const gradient = ctx.createLinearGradient(x, y, x + powerUp.width, y + powerUp.height);
+            gradient.addColorStop(0, '#ff0080');
+            gradient.addColorStop(0.33, '#ff8c00');
+            gradient.addColorStop(0.66, '#40e0d0');
+            gradient.addColorStop(1, '#8a2be2');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, powerUp.width, powerUp.height);
+
+            // 边框
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, powerUp.width, powerUp.height);
+
+            // 问号
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 28px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('?', powerUp.x, powerUp.y + bounce);
+
+            // 闪烁效果
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(Date.now() * 0.01) * 0.2})`;
+            ctx.fillRect(x, y, powerUp.width, powerUp.height);
+
+            ctx.restore();
+        }
+
+        // 绘制超级模式特效
+        function drawSuperModeEffects() {
+            if (!superMode.active) return;
+
+            ctx.save();
+
+            // 玩家周围的光环
+            const time = Date.now() * 0.01;
+            const radius = 60 + Math.sin(time) * 10;
+
+            // 外圈光环
+            const gradient = ctx.createRadialGradient(player.x, player.y, 30, player.x, player.y, radius);
+            gradient.addColorStop(0, 'rgba(255, 0, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(0, 255, 255, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 0, 255, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 旋转的能量环
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 3; i++) {
+                const angle = time + (i * Math.PI * 2 / 3);
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, 50, angle, angle + Math.PI);
+                ctx.stroke();
+            }
+
+            // 超级模式文字提示
+            ctx.fillStyle = '#ff00ff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#fff';
+            ctx.shadowBlur = 10;
+            ctx.fillText('⚡ 超级模式 ⚡', canvas.width / 2, 80);
+
+            // 剩余时间条
+            const barWidth = 200;
+            const barHeight = 10;
+            const progress = superMode.timeLeft / superMode.duration;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect((canvas.width - barWidth) / 2, 90, barWidth, barHeight);
+
+            const barGradient = ctx.createLinearGradient(0, 90, canvas.width, 90);
+            barGradient.addColorStop(0, '#ff0080');
+            barGradient.addColorStop(1, '#00ffff');
+            ctx.fillStyle = barGradient;
+            ctx.fillRect((canvas.width - barWidth) / 2, 90, barWidth * progress, barHeight);
+
+            ctx.restore();
+        }
+
+        // 绘制道具箱
+        function drawPowerUp(powerUp) {
+            ctx.save();
+
+            // 旋转动画
+            powerUp.rotation += 0.02;
+            const bounce = Math.sin(Date.now() * 0.01) * 3;
+
+            const x = powerUp.x - powerUp.width / 2;
+            const y = powerUp.y - powerUp.height / 2 + bounce;
+
+            // 外发光效果
+            if (superMode.active) {
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 20;
+            }
+
+            // 道具箱背景 - 彩虹渐变
+            const gradient = ctx.createLinearGradient(x, y, x + powerUp.width, y + powerUp.height);
+            gradient.addColorStop(0, '#ff0080');
+            gradient.addColorStop(0.33, '#8000ff');
+            gradient.addColorStop(0.66, '#0080ff');
+            gradient.addColorStop(1, '#00ff80');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, powerUp.width, powerUp.height);
+
+            // 边框
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, powerUp.width, powerUp.height);
+
+            // 问号
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 28px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('?', powerUp.x, powerUp.y + bounce);
+
+            // 闪光效果
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 15, y);
+            ctx.lineTo(x, y + 15);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // 绘制超级模式进度条
+        function drawSuperModeBar() {
+            if (!superMode.active) return;
+
+            const barWidth = 200;
+            const barHeight = 20;
+            const x = (canvas.width - barWidth) / 2;
+            const y = 60;
+
+            // 背景
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(x - 5, y - 5, barWidth + 10, barHeight + 10);
+
+            // 进度条背景
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            // 进度条
+            const progress = superMode.timeLeft / superMode.duration;
+            const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+            gradient.addColorStop(0, '#ff00ff');
+            gradient.addColorStop(0.5, '#00ffff');
+            gradient.addColorStop(1, '#ffff00');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, barWidth * progress, barHeight);
+
+            // 文字
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⚡ 超级模式 ⚡', canvas.width / 2, y + barHeight / 2);
+        }
+
+        // 绘制道路
+        function drawRoad() {
+            // 草地背景
+            ctx.fillStyle = '#27ae60';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 道路
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
+
+            // 道路边框
+            ctx.strokeStyle = '#ecf0f1';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(roadLeft, 0);
+            ctx.lineTo(roadLeft, canvas.height);
+            ctx.moveTo(roadLeft + roadWidth, 0);
+            ctx.lineTo(roadLeft + roadWidth, canvas.height);
+            ctx.stroke();
+
+            // 车道线
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([30, 30]);
+
+            roadOffset = (roadOffset + gameSpeed) % 60;
+
+            for (let i = 0; i < 2; i++) {
+                ctx.beginPath();
+                ctx.moveTo(roadLeft + laneWidth * (i + 1), -60 + roadOffset);
+                ctx.lineTo(roadLeft + laneWidth * (i + 1), canvas.height);
+                ctx.stroke();
+            }
+
+            ctx.setLineDash([]);
+        }
+
+        // 绘制粒子
+        function drawParticles() {
+            particles.forEach((p, index) => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 30;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                p.size *= 0.95;
+
+                if (p.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+        }
+
+        // 碰撞检测
+        function checkCollision(rect1, rect2) {
+            return Math.abs(rect1.x - rect2.x) < (rect1.width + rect2.width) / 2 - 5 &&
+                   Math.abs(rect1.y - rect2.y) < (rect1.height + rect2.height) / 2 - 5;
+        }
+
+        // 更新游戏
+        function update() {
+            if (gameState !== 'playing') return;
+
+            // 看戏模式：AI自动控制
+            if (isSpectatorMode) {
+                aiDecision();
+            } else {
+                // 处理玩家输入
+                if (keys['ArrowLeft'] && player.lane > 0) {
+                    player.lane--;
+                    keys['ArrowLeft'] = false;
+                }
+                if (keys['ArrowRight'] && player.lane < 2) {
+                    player.lane++;
+                    keys['ArrowRight'] = false;
+                }
+                if (keys['ArrowUp']) {
+                    speedMultiplier = Math.min(speedMultiplier + 0.1, 3);
+                }
+                if (keys['ArrowDown']) {
+                    speedMultiplier = Math.max(speedMultiplier - 0.1, 0.5);
+                }
+            }
+
+            // 平滑移动到目标车道
+            const targetX = laneCenters[player.lane];
+            player.x += (targetX - player.x) * 0.2;
+
+            // 更新游戏速度
+            gameSpeed = baseSpeed * speedMultiplier;
+
+            // 生成敌方车辆
+            if (Math.random() < 0.02 + speedMultiplier * 0.005) {
+                createEnemyCar();
+            }
+
+            // 生成金币
+            if (Math.random() < 0.01) {
+                createCoin();
+            }
+
+            // 生成道具箱（比金币稀有）
+            if (Math.random() < 0.002) {
+                createPowerUp();
+            }
+
+            // 更新超级模式
+            if (superMode.active) {
+                superMode.timeLeft -= 16; // 约60fps
+                if (superMode.timeLeft <= 0) {
+                    deactivateSuperMode();
+                }
+            }
+
+            // 更新敌方车辆
+            enemyCars.forEach((car, index) => {
+                car.y += car.speed + gameSpeed * 0.3;
+
+                // 检查碰撞
+                if (checkCollision(player, car)) {
+                    if (superMode.active && superModeEffects.invincible) {
+                        // 超级模式：撞飞敌车而不是游戏结束
+                        createParticles(car.x, car.y, car.color, 20);
+                        createParticles(car.x, car.y, '#ff00ff', 15);
+                        car.y = -200; // 把敌车移出屏幕
+                        score += 100; // 撞飞奖励
+                    } else {
+                        gameOver('撞车了！小心驾驶~');
+                    }
+                }
+
+                // 计分（超越车辆）
+                if (car.y > player.y + player.height/2 && !car.passed) {
+                    car.passed = true;
+                    passedCars++;
+                    score += 10;
+                    updateUI();
+                }
+
+                // 移除屏幕外的车辆
+                if (car.y > canvas.height + 100) {
+                    enemyCars.splice(index, 1);
+                }
+            });
+
+            // 更新金币（超级模式下自动吸附）
+            coins.forEach((coin, index) => {
+                coin.y += gameSpeed;
+
+                // 检查收集
+                let collectDist = player.width/2 + coin.radius;
+
+                // 超级模式：增加吸附范围
+                if (superMode.active) {
+                    collectDist = superModeEffects.magnetRange;
+
+                    // 磁吸效果：金币向玩家移动
+                    const dist = Math.sqrt((player.x - coin.x) ** 2 + (player.y - coin.y) ** 2);
+                    if (dist < superModeEffects.magnetRange * 1.5) {
+                        coin.x += (player.x - coin.x) * 0.1;
+                        coin.y += (player.y - coin.y) * 0.1;
+                    }
+                }
+
+                const dist = Math.sqrt((player.x - coin.x) ** 2 + (player.y - coin.y) ** 2);
+                if (dist < collectDist) {
+                    score += 50;
+                    createParticles(coin.x, coin.y, '#ffd700', 15);
+                    coins.splice(index, 1);
+                    updateUI();
+                }
+
+                // 移除屏幕外的金币
+                if (coin.y > canvas.height + 50) {
+                    coins.splice(index, 1);
+                }
+            });
+
+            // 更新道具箱
+            powerUps.forEach((powerUp, index) => {
+                powerUp.y += gameSpeed;
+
+                // 检查收集
+                if (checkCollision(player, powerUp)) {
+                    activateSuperMode();
+                    powerUps.splice(index, 1);
+                }
+
+                // 移除屏幕外的道具箱
+                if (powerUp.y > canvas.height + 50) {
+                    powerUps.splice(index, 1);
+                }
+            });
+
+            // 持续加分
+            score += Math.floor(gameSpeed / 10);
+            updateUI();
+        }
+
+        // 绘制游戏
+        function draw() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制道路
+            drawRoad();
+
+            // 绘制道具箱
+            powerUps.forEach(drawPowerUp);
+
+            // 绘制金币
+            coins.forEach(drawCoin);
+
+            // 绘制敌方车辆
+            enemyCars.forEach(car => drawCar(car.x, car.y, car.width, car.height, car.color));
+
+            // 绘制玩家赛车（超级模式下有特殊效果）
+            if (gameState === 'playing') {
+                if (superMode.active) {
+                    // 超级模式：绘制发光效果
+                    ctx.save();
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowBlur = 30;
+                    drawCar(player.x, player.y, player.width, player.height, player.color, true);
+                    ctx.restore();
+
+                    // 绘制保护罩
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + Math.sin(Date.now() * 0.01) * 0.3})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(player.x, player.y, 50, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else {
+                    drawCar(player.x, player.y, player.width, player.height, player.color, true);
+                }
+            }
+
+            // 绘制粒子
+            drawParticles();
+
+            // 绘制超级模式进度条
+            drawSuperModeBar();
+        }
+
+        // 更新UI
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('passed').textContent = passedCars;
+            document.getElementById('speed').textContent = Math.floor(gameSpeed * 20);
+        }
+
+        // 游戏循环
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 开始游戏
+        function startGame() {
+            gameState = 'playing';
+            isSpectatorMode = false;
+            score = 0;
+            passedCars = 0;
+            gameSpeed = baseSpeed;
+            speedMultiplier = 1;
+            enemyCars = [];
+            coins = [];
+            powerUps = [];
+            particles = [];
+            superMode.active = false;
+            player.lane = 1;
+            player.x = laneCenters[1];
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('controlsHint').textContent = '← → 方向键控制移动 | ↑ 加速 | ↓ 减速';
+            updateUI();
+        }
+
+        // 开始看戏模式 (AI自动玩)
+        function startSpectatorMode() {
+            gameState = 'playing';
+            isSpectatorMode = true;
+            score = 0;
+            passedCars = 0;
+            gameSpeed = baseSpeed;
+            speedMultiplier = 1.5; // AI玩的时候速度稍快一点
+            enemyCars = [];
+            coins = [];
+            powerUps = [];
+            particles = [];
+            superMode.active = false;
+            player.lane = 1;
+            player.x = laneCenters[1];
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('controlsHint').textContent = '🤖 AI 正在驾驶中... 观看表演吧！';
+            updateUI();
+        }
+
+        // AI决策 - 看戏模式核心逻辑
+        function aiDecision() {
+            if (!isSpectatorMode || gameState !== 'playing') return;
+
+            const lookaheadDistance = 150; // AI预判距离
+            const dangerZone = 80; // 危险区域距离
+
+            // 获取当前车道前方最近的敌车
+            function getNearestCarInLane(lane) {
+                let nearest = null;
+                let minDist = Infinity;
+
+                enemyCars.forEach(car => {
+                    if (car.lane === lane && car.y < player.y) {
+                        const dist = player.y - car.y;
+                        if (dist < minDist && dist > 0) {
+                            minDist = dist;
+                            nearest = car;
+                        }
+                    }
+                });
+                return { car: nearest, distance: minDist };
+            }
+
+            // 获取当前车道最近的硬币
+            function getNearestCoinInLane(lane) {
+                let nearest = null;
+                let minDist = Infinity;
+
+                coins.forEach(coin => {
+                    // 计算硬币在哪条车道
+                    const coinLane = Math.floor((coin.x - roadLeft) / laneWidth);
+                    if (coinLane === lane && coin.y < player.y + 50) {
+                        const dist = player.y - coin.y;
+                        if (dist < minDist && dist > -50) {
+                            minDist = dist;
+                            nearest = coin;
+                        }
+                    }
+                });
+                return { coin: nearest, distance: minDist };
+            }
+
+            // 获取当前车道最近的道具箱（优先级最高！）
+            function getNearestPowerUpInLane(lane) {
+                let nearest = null;
+                let minDist = Infinity;
+
+                powerUps.forEach(powerUp => {
+                    const puLane = Math.floor((powerUp.x - roadLeft) / laneWidth);
+                    if (puLane === lane && powerUp.y < player.y + 100) {
+                        const dist = player.y - powerUp.y;
+                        if (dist < minDist && dist > -50) {
+                            minDist = dist;
+                            nearest = powerUp;
+                        }
+                    }
+                });
+                return { powerUp: nearest, distance: minDist };
+            }
+
+            const currentLane = player.lane;
+            const leftLane = currentLane - 1;
+            const rightLane = currentLane + 1;
+
+            const currentThreat = getNearestCarInLane(currentLane);
+            const leftThreat = leftLane >= 0 ? getNearestCarInLane(leftLane) : { car: null, distance: 0 };
+            const rightThreat = rightLane <= 2 ? getNearestCarInLane(rightLane) : { car: null, distance: 0 };
+
+            const currentCoin = getNearestCoinInLane(currentLane);
+            const leftCoin = leftLane >= 0 ? getNearestCoinInLane(leftLane) : { coin: null, distance: Infinity };
+            const rightCoin = rightLane <= 2 ? getNearestCoinInLane(rightLane) : { coin: null, distance: Infinity };
+
+            // 获取道具箱信息（优先级最高！）
+            const currentPU = getNearestPowerUpInLane(currentLane);
+            const leftPU = leftLane >= 0 ? getNearestPowerUpInLane(leftLane) : { powerUp: null, distance: Infinity };
+            const rightPU = rightLane <= 2 ? getNearestPowerUpInLane(rightLane) : { powerUp: null, distance: Infinity };
+
+            // AI决策优先级：
+            // 1. 避免碰撞（最高优先级）
+            // 2. 收集道具箱（超级模式！）
+            // 3. 收集金币
+            // 4. 保持在当前车道
+
+            let targetLane = currentLane;
+            let shouldMove = false;
+
+            // 检查当前车道是否有危险
+            if (currentThreat.car && currentThreat.distance < dangerZone) {
+                // 需要变道躲避
+                let canGoLeft = leftLane >= 0 && (!leftThreat.car || leftThreat.distance > dangerZone);
+                let canGoRight = rightLane <= 2 && (!rightThreat.car || rightThreat.distance > dangerZone);
+
+                if (canGoLeft && canGoRight) {
+                    // 两边都可以，选择更安全或更有金币的一边
+                    const leftScore = leftThreat.distance + (leftCoin.coin ? 50 : 0);
+                    const rightScore = rightThreat.distance + (rightCoin.coin ? 50 : 0);
+                    targetLane = leftScore >= rightScore ? leftLane : rightLane;
+                } else if (canGoLeft) {
+                    targetLane = leftLane;
+                } else if (canGoRight) {
+                    targetLane = rightLane;
+                }
+                shouldMove = true;
+            } else {
+                // 当前车道安全，优先收集道具箱！
+                const powerUpRange = 250;
+                const coinCollectRange = 200;
+
+                // 检查附近是否有道具箱（最高优先级！）
+                if (leftLane >= 0 && leftPU.powerUp && leftPU.distance < powerUpRange) {
+                    if (!leftThreat.car || leftThreat.distance > dangerZone) {
+                        targetLane = leftLane;
+                        shouldMove = true;
+                    }
+                } else if (rightLane <= 2 && rightPU.powerUp && rightPU.distance < powerUpRange) {
+                    if (!rightThreat.car || rightThreat.distance > dangerZone) {
+                        targetLane = rightLane;
+                        shouldMove = true;
+                    }
+                }
+                // 没有道具箱再考虑金币
+                else if (leftLane >= 0 && leftCoin.coin && leftCoin.distance < coinCollectRange) {
+                    if (!leftThreat.car || leftThreat.distance > dangerZone) {
+                        targetLane = leftLane;
+                        shouldMove = true;
+                    }
+                } else if (rightLane <= 2 && rightCoin.coin && rightCoin.distance < coinCollectRange) {
+                    if (!rightThreat.car || rightThreat.distance > dangerZone) {
+                        targetLane = rightLane;
+                        shouldMove = true;
+                    }
+                }
+            }
+
+            // 执行变道
+            if (shouldMove && targetLane !== currentLane) {
+                // 添加一点随机延迟，让AI看起来更自然
+                if (Math.random() > 0.1) {
+                    player.lane = targetLane;
+                }
+            }
+
+            // AI自动加速控制 - 在安全时加速，危险时减速
+            if (currentThreat.car && currentThreat.distance < dangerZone * 1.5) {
+                // 危险，减速
+                speedMultiplier = Math.max(speedMultiplier - 0.02, 0.8);
+            } else {
+                // 安全，加速
+                speedMultiplier = Math.min(speedMultiplier + 0.01, 2.5);
+            }
+        }
+
+        // 游戏结束
+        function gameOver(reason) {
+            gameState = 'gameover';
+            createParticles(player.x, player.y, '#e74c3c', 30);
+
+            document.getElementById('finalScore').textContent = score;
+
+            // 根据模式显示不同的结束语
+            if (isSpectatorMode) {
+                const aiComments = [
+                    'AI 撞车了！看来还需要更多训练...',
+                    'AI 失误了！人类还是更厉害对吧？',
+                    '哎呀，AI 也有失手的时候！',
+                    'AI 说：这局运气不好，再来！'
+                ];
+                document.getElementById('gameOverReason').textContent = aiComments[Math.floor(Math.random() * aiComments.length)];
+            } else {
+                document.getElementById('gameOverReason').textContent = reason;
+            }
+
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        // 重新开始
+        function restartGame() {
+            if (isSpectatorMode) {
+                startSpectatorMode();
+            } else {
+                startGame();
+            }
+        }
+
+        // 切换模式按钮（游戏结束后）
+        function switchMode() {
+            isSpectatorMode = !isSpectatorMode;
+            if (isSpectatorMode) {
+                startSpectatorMode();
+            } else {
+                startGame();
+            }
+        }
+
+        // 启动游戏循环
+        gameLoop();
+    </script>
+</body>
+</html>
